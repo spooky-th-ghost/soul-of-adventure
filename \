@@ -1,0 +1,362 @@
+use crate::{GameState, StructureCache};
+use bevy::prelude::*;
+
+pub struct RoomBuilderPlugin;
+
+impl Plugin for RoomBuilderPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(OnEnter(GameState::Gameplay), build_a_room);
+    }
+}
+
+fn build_a_room(mut commands: Commands, structures: Res<StructureCache>) {
+    let room = StructureGrid::from_str(
+        "
+            xxxxxxxxxxxxxxxxx
+            x          d    x
+            x    xxxddxxxxdxx
+            x    xoooooox   x
+            xxxxxxooooooxxxdx
+        ",
+        Vec3::ZERO,
+    );
+
+    println!("{}", room.get_center());
+    build_room(room, commands, &structures);
+}
+
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub enum TileType {
+    Wall,
+    Door,
+    Empty,
+}
+
+impl TileType {
+    fn is_wall_like(self) -> bool {
+        matches!(self, Self::Wall | Self::Door)
+    }
+}
+
+type Tile = Option<TileType>;
+
+pub enum GridDirection {
+    North,
+    South,
+    West,
+    East,
+}
+
+#[derive(Default)]
+pub struct TileCross {
+    pub north: Tile,
+    pub south: Tile,
+    pub west: Tile,
+    pub east: Tile,
+}
+
+#[derive(Debug)]
+pub struct StructureGrid(Vec<Vec<Tile>>, Vec3);
+
+impl StructureGrid {
+    fn get_adjacent(&self, cur_y: usize, cur_x: usize, direction: GridDirection) -> Tile {
+        use GridDirection::*;
+        match direction {
+            North => {
+                if cur_y == 0 {
+                    None
+                } else {
+                    self.0[cur_y - 1][cur_x]
+                }
+            }
+            South => {
+                if cur_y >= self.0.len() - 1 {
+                    None
+                } else {
+                    self.0[cur_y + 1][cur_x]
+                }
+            }
+            West => {
+                if cur_x == 0 {
+                    None
+                } else {
+                    self.0[cur_y][cur_x - 1]
+                }
+            }
+            East => {
+                if cur_x >= self.0[cur_y].len() - 1 {
+                    None
+                } else {
+                    self.0[cur_y][cur_x + 1]
+                }
+            }
+        }
+    }
+    fn get_surrounding(&self, cur_x: usize, cur_y: usize) -> TileCross {
+        use GridDirection::*;
+        TileCross {
+            north: self.get_adjacent(cur_x, cur_y, North),
+            south: self.get_adjacent(cur_x, cur_y, South),
+            west: self.get_adjacent(cur_x, cur_y, West),
+            east: self.get_adjacent(cur_x, cur_y, East),
+        }
+    }
+
+    fn get_translation(&self, cur_y: usize, cur_x: usize) -> Vec3 {
+        Vec3::new(cur_x as f32 * 4.0, 0.0, cur_y as f32 * 4.0)
+    }
+    fn get_physical_size(&self) -> Vec3 {
+        let height = (self.0.len() + 1) as f32 * 4.0;
+        let width = (self.0[0].len() + 1) as f32 * 4.0;
+        Vec3::new(width, 0.0, height)
+    }
+
+    pub fn get_center(&self) -> Vec3 {
+        (self.get_physical_size() / 2.0) + self.1
+    }
+
+    fn from_str(input: &str, origin: Vec3) -> StructureGrid {
+        let tiles: Vec<Vec<Tile>> = input
+            .trim()
+            .lines()
+            .map(|string_row| {
+                string_row
+                    .trim()
+                    .chars()
+                    .map(|character| {
+                        if character == 'x' {
+                            return Some(TileType::Wall);
+                        }
+                        if character == 'd' {
+                            return Some(TileType::Door);
+                        }
+                        return Some(TileType::Empty);
+                    })
+                    .collect()
+            })
+            .collect();
+        StructureGrid(tiles, origin)
+    }
+}
+
+enum RenderableParts {
+    NorthWall,
+    SouthWall,
+    EastWall,
+    WestWall,
+    NorthDoor,
+    SouthDoor,
+    EastDoor,
+    WestDoor,
+    NWestCorner,
+    NEastCorner,
+    SWestCorner,
+    SEastCorner,
+    MultiCorner,
+    NoPart,
+}
+
+impl RenderableParts {
+    fn render(self, structures: &Res<StructureCache>) -> (Handle<Scene>, Quat) {
+        match self {
+            RenderableParts::NorthWall => (structures.wall.clone_weak(), Quat::default()),
+            RenderableParts::SouthWall => (
+                structures.wall.clone_weak(),
+                Quat::from_axis_angle(Vec3::Y, 180.0_f32.to_radians()),
+            ),
+            RenderableParts::EastWall => (
+                structures.wall.clone_weak(),
+                Quat::from_axis_angle(Vec3::Y, 90.0_f32.to_radians()),
+            ),
+            RenderableParts::WestWall => (
+                structures.wall.clone_weak(),
+                Quat::from_axis_angle(Vec3::Y, 270.0_f32.to_radians()),
+            ),
+            RenderableParts::NorthDoor => (structures.door.clone_weak(), Quat::default()),
+            RenderableParts::SouthDoor => (
+                structures.door.clone_weak(),
+                Quat::from_axis_angle(Vec3::Y, 180.0_f32.to_radians()),
+            ),
+            RenderableParts::EastDoor => (
+                structures.door.clone_weak(),
+                Quat::from_axis_angle(Vec3::Y, 90.0_f32.to_radians()),
+            ),
+            RenderableParts::WestDoor => (
+                structures.door.clone_weak(),
+                Quat::from_axis_angle(Vec3::Y, 270.0_f32.to_radians()),
+            ),
+            RenderableParts::NEastCorner => (structures.wall_corner.clone_weak(), Quat::default()),
+            RenderableParts::SWestCorner => (
+                structures.wall_corner.clone_weak(),
+                Quat::from_axis_angle(Vec3::Y, 180.0_f32.to_radians()),
+            ),
+            RenderableParts::SEastCorner => (
+                structures.wall_corner.clone_weak(),
+                Quat::from_axis_angle(Vec3::Y, 270.0_f32.to_radians()),
+            ),
+            RenderableParts::NWestCorner => (
+                structures.wall_corner.clone_weak(),
+                Quat::from_axis_angle(Vec3::Y, 90.0_f32.to_radians()),
+            ),
+            RenderableParts::MultiCorner => (structures.multi_corner.clone_weak(), Quat::default()),
+            _ => (Handle::default(), Quat::default()),
+        }
+    }
+}
+
+pub fn build_room(grid: StructureGrid, mut commands: Commands, structures: &Res<StructureCache>) {
+    use RenderableParts::*;
+    use TileType::*;
+
+    commands
+        .spawn((
+            SpatialBundle {
+                transform: Transform::from_translation(grid.1),
+                visibility: Visibility::Visible,
+                ..default()
+            },
+            Name::from("Room"),
+        ))
+        .with_children(|parent| {
+            for y in 0..grid.0.len() {
+                for x in 0..grid.0[0].len() {
+                    let mut renderable: RenderableParts = NoPart;
+                    let surrounding = grid.get_surrounding(y, x);
+                    match grid.0[y][x] {
+                        Some(tile) => match tile {
+                            Wall => {
+                                if let (Some(east), Some(west)) =
+                                    (surrounding.east, surrounding.west)
+                                {
+                                    if east != Empty && west != Empty {
+                                        if surrounding.south.is_none()
+                                            || Some(Empty) == surrounding.south
+                                        {
+                                            renderable = SouthWall;
+                                        }
+
+                                        if surrounding.north.is_none()
+                                            || Some(Empty) == surrounding.north
+                                        {
+                                            renderable = NorthWall;
+                                        }
+                                    }
+                                }
+
+                                if let (Some(north), Some(south)) =
+                                    (surrounding.north, surrounding.south)
+                                {
+                                    if north != Empty && south != Empty {
+                                        if surrounding.west.is_none()
+                                            || Some(Empty) == surrounding.west
+                                        {
+                                            renderable = WestWall;
+                                        }
+
+                                        if surrounding.east.is_none()
+                                            || Some(Empty) == surrounding.east
+                                        {
+                                            renderable = EastWall;
+                                        }
+                                    }
+                                }
+
+                                if let (Some(north), Some(east)) =
+                                    (surrounding.north, surrounding.east)
+                                {
+                                    if north != Empty && east != Empty {
+                                        renderable = SWestCorner;
+                                    }
+                                }
+
+                                if let (Some(north), Some(west)) =
+                                    (surrounding.north, surrounding.west)
+                                {
+                                    if north != Empty && west != Empty {
+                                        renderable = SEastCorner;
+                                    }
+                                }
+
+                                if let (Some(south), Some(east)) =
+                                    (surrounding.south, surrounding.east)
+                                {
+                                    if south != Empty && east != Empty {
+                                        renderable = NWestCorner;
+                                    }
+                                }
+
+                                if let (Some(south), Some(west)) =
+                                    (surrounding.south, surrounding.west)
+                                {
+                                    if south.is_wall_like() && west.is_wall_like() {
+                                        renderable = NEastCorner;
+                                    }
+                                }
+
+                                if let (Some(north), Some(south), Some(east), Some(west)) = (
+                                    surrounding.north,
+                                    surrounding.south,
+                                    surrounding.east,
+                                    surrounding.west,
+                                ) {
+                                    if north.is_wall_like()
+                                        && south.is_wall_like()
+                                        && east.is_wall_like()
+                                        && west.is_wall_like()
+                                    {
+                                        renderable = MultiCorner;
+                                    }
+                                }
+                            }
+                            Door => {
+                                if let (Some(east), Some(west)) =
+                                    (surrounding.east, surrounding.west)
+                                {
+                                    if east != Empty && west != Empty {
+                                        if surrounding.south.is_none()
+                                            || Some(Empty) == surrounding.south
+                                        {
+                                            renderable = SouthDoor;
+                                        }
+
+                                        if surrounding.north.is_none()
+                                            || Some(Empty) == surrounding.north
+                                        {
+                                            renderable = NorthDoor;
+                                        }
+                                    }
+                                }
+
+                                if let (Some(north), Some(south)) =
+                                    (surrounding.north, surrounding.south)
+                                {
+                                    if north != Empty && south != Empty {
+                                        if surrounding.west.is_none()
+                                            || Some(Empty) == surrounding.west
+                                        {
+                                            renderable = WestDoor;
+                                        }
+
+                                        if surrounding.east.is_none()
+                                            || Some(Empty) == surrounding.east
+                                        {
+                                            renderable = EastDoor;
+                                        }
+                                    }
+                                }
+                            }
+                            Empty => (),
+                        },
+                        None => (),
+                    }
+                    let (handle, rotation) = renderable.render(structures);
+                    parent.spawn(SceneBundle {
+                        scene: handle,
+                        transform: Transform::from_translation(grid.get_translation(y, x))
+                            .with_rotation(rotation),
+                        ..default()
+                    });
+                }
+            }
+        });
+}

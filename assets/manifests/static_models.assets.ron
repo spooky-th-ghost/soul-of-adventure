@@ -1,0 +1,21 @@
+({
+		"wall": File (
+			path: "dungeons/wall.gltf.glb#Scene0"
+		),
+
+		"wall_corner": File (
+			path: "dungeons/wall_corner.gltf.glb#Scene0"
+		),
+
+		"door": File (
+			path: "dungeons/wall_doorway.glb#Scene0"
+		),
+
+		"multi_corner": File (
+			path: "dungeons/wall_crossing.gltf.glb#Scene0"
+		),
+
+		"t_split": File (
+			path: "dungeons/wall_Tsplit.gltf.glb#Scene0"
+		)
+})
