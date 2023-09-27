@@ -30,7 +30,7 @@ fn build_a_room(mut commands: Commands, structures: Res<StructureCache>) {
             x    x     d    x
             xxxxxxxxddxxxxdxx
             x    xoooooox   x
-            xxxxxxooooooxxxdx
+            xxxxxxxxxxxxxxxdx
         ",
         Vec3::ZERO,
     );
@@ -415,6 +415,19 @@ impl Room {
                 Name::from("Room"),
             ))
             .with_children(|parent| {
+                parent.spawn((
+                    TransformBundle {
+                        local: Transform::from_translation(self.get_center()),
+                        ..default()
+                    },
+                    Collider::cuboid(
+                        (self.width as f32 / 2.0) * 4.0,
+                        0.5,
+                        (self.height as f32 / 2.0) * 4.0,
+                    ),
+                    RigidBody::Fixed,
+                ));
+
                 for x in 0..self.width {
                     for y in 0..self.height {
                         let mut renderable: RenderableParts = NoPart;
