@@ -92,7 +92,7 @@ fn main() {
 fn startup(mut commands: Commands, characters: Res<CharacterCache>) {
     commands.spawn((
         Camera3dBundle {
-            transform: Transform::from_xyz(27.0, 77.0, 10.0)
+            transform: Transform::from_xyz(3.0, 2.0, 15.6)
                 .with_rotation(Quat::from_axis_angle(Vec3::X, -90.0_f32.to_radians())),
             ..default()
         },
