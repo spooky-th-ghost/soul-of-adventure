@@ -3,7 +3,11 @@ use bevy_asset_loader::prelude::*;
 use bevy_inspector_egui::quick::*;
 use bevy_rapier3d::prelude::*;
 
+mod animation;
 mod camera;
+mod input;
+mod physics;
+mod player;
 mod room_builder;
 
 #[derive(States, PartialEq, Eq, Debug, Clone, Hash, Default)]
@@ -15,15 +19,12 @@ pub enum GameState {
     Transition,
 }
 
-#[derive(Event)]
-pub enum AnimationTransitionEvent {
-    ToIdle,
-    ToRun,
-    ToPickup,
-    ToKick,
-    ToInteract,
-    ToJump,
-    ToThrow,
+#[derive(Default)]
+pub enum CharacterId {
+    #[default]
+    Player,
+    SkeletonWarrior,
+    SkeletonMage,
 }
 
 #[derive(Resource, AssetCollection)]
@@ -54,14 +55,8 @@ pub struct CharacterCache {
 
 fn main() {
     App::new()
-        .add_plugins((
-            DefaultPlugins,
-            WorldInspectorPlugin::default(),
-            RapierPhysicsPlugin::<NoUserData>::default(),
-            RapierDebugRenderPlugin::default(),
-            room_builder::RoomBuilderPlugin,
-        ))
-        .add_event::<AnimationTransitionEvent>()
+        .add_plugins((DefaultPlugins, WorldInspectorPlugin::default()))
+        .add_plugins((room_builder::RoomBuilderPlugin, physics::PhysicsPlugin))
         .add_state::<GameState>()
         .add_loading_state(
             LoadingState::new(GameState::PreLoad).continue_to_state(GameState::Gameplay),
@@ -82,10 +77,6 @@ fn main() {
             "manifests/character_models.assets.ron",
         )
         .add_systems(OnEnter(GameState::Gameplay), startup)
-        .add_systems(
-            Update,
-            play_idle_animation.run_if(in_state(GameState::Gameplay)),
-        )
         .run();
 }
 
@@ -105,13 +96,4 @@ fn startup(mut commands: Commands, characters: Res<CharacterCache>) {
             ..default()
         })
         .insert(Name::from("Player"));
-}
-
-fn play_idle_animation(
-    player_animations: Res<PlayerAnimationCache>,
-    mut player_query: Query<&mut AnimationPlayer, Added<AnimationPlayer>>,
-) {
-    for mut player in &mut player_query {
-        player.play(player_animations.idle.clone_weak()).repeat();
-    }
 }
