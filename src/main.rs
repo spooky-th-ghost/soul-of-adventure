@@ -31,6 +31,10 @@ pub enum CharacterId {
 pub struct PlayerAnimationCache {
     #[asset(key = "idle")]
     idle: Handle<AnimationClip>,
+    #[asset(key = "interact")]
+    interact: Handle<AnimationClip>,
+    #[asset(key = "run")]
+    run: Handle<AnimationClip>,
 }
 
 #[derive(Resource, AssetCollection)]
@@ -80,7 +84,7 @@ fn main() {
         .run();
 }
 
-fn startup(mut commands: Commands, characters: Res<CharacterCache>) {
+fn startup(mut commands: Commands) {
     commands.spawn((
         Camera3dBundle {
             transform: Transform::from_xyz(3.0, 2.0, 15.6)
@@ -89,11 +93,4 @@ fn startup(mut commands: Commands, characters: Res<CharacterCache>) {
         },
         Name::from("Camera"),
     ));
-
-    commands
-        .spawn(SceneBundle {
-            scene: characters.player.clone_weak(),
-            ..default()
-        })
-        .insert(Name::from("Player"));
 }

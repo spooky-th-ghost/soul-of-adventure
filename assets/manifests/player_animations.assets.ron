@@ -2,4 +2,10 @@
     "idle": File (
         path: "characters/models/Rogue_Hooded.glb#Animation36",
     ),
+		"interact": File (
+			path: "characters/models/Rogue_Hooded.glb#Animation37"
+		),
+		"run": File (
+			path: "characters/models/Rogue_Hooded.glb#Animation48"
+		),
 })
