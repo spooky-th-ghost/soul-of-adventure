@@ -58,14 +58,12 @@ pub fn store_animation_relationships(
     grandparent_query: Query<(Entity, &Children), With<Animated>>,
 ) {
     for (grandchild_entity, grandchild_parent) in &child_query {
-        grandparents += 1;
         for (grandparent_entity, grandparent_children) in &grandparent_query {
             if grandparent_children
                 .into_iter()
                 .any(|entity| *entity == grandchild_parent.get())
             {
                 animation_character_map.insert(grandparent_entity, grandchild_entity);
-                counter += 1;
             }
         }
     }
