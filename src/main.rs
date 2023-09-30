@@ -14,6 +14,7 @@ mod room_builder;
 pub enum GameState {
     #[default]
     PreLoad,
+    Load,
     MainMenu,
     Gameplay,
     Transition,
@@ -26,6 +27,9 @@ pub enum CharacterId {
     SkeletonWarrior,
     SkeletonMage,
 }
+
+#[derive(Component)]
+pub struct Animated;
 
 #[derive(Resource, AssetCollection)]
 pub struct PlayerAnimationCache {
@@ -60,11 +64,14 @@ pub struct CharacterCache {
 fn main() {
     App::new()
         .add_plugins((DefaultPlugins, WorldInspectorPlugin::default()))
-        .add_plugins((room_builder::RoomBuilderPlugin, physics::PhysicsPlugin))
+        .add_plugins((
+            animation::AnimationPlugin,
+            room_builder::RoomBuilderPlugin,
+            physics::PhysicsPlugin,
+            player::PlayerPlugin,
+        ))
         .add_state::<GameState>()
-        .add_loading_state(
-            LoadingState::new(GameState::PreLoad).continue_to_state(GameState::Gameplay),
-        )
+        .add_loading_state(LoadingState::new(GameState::PreLoad).continue_to_state(GameState::Load))
         .add_collection_to_loading_state::<_, PlayerAnimationCache>(GameState::PreLoad)
         .add_collection_to_loading_state::<_, StructureCache>(GameState::PreLoad)
         .add_collection_to_loading_state::<_, CharacterCache>(GameState::PreLoad)
@@ -80,15 +87,19 @@ fn main() {
             GameState::PreLoad,
             "manifests/character_models.assets.ron",
         )
-        .add_systems(OnEnter(GameState::Gameplay), startup)
+        .add_systems(OnEnter(GameState::Load), startup)
+        .add_systems(Update, move_to_gameplay.run_if(in_state(GameState::Load)))
         .run();
+}
+
+fn move_to_gameplay(mut next_state: ResMut<NextState<GameState>>) {
+    next_state.set(GameState::Gameplay);
 }
 
 fn startup(mut commands: Commands) {
     commands.spawn((
         Camera3dBundle {
-            transform: Transform::from_xyz(3.0, 2.0, 15.6)
-                .with_rotation(Quat::from_axis_angle(Vec3::X, -90.0_f32.to_radians())),
+            transform: Transform::from_xyz(5.0, 15.0, 10.0).looking_at(Vec3::ZERO, Vec3::Y),
             ..default()
         },
         Name::from("Camera"),

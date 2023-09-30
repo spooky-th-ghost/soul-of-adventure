@@ -1,13 +1,26 @@
+use crate::Animated;
 use crate::CharacterId;
+use crate::GameState;
 use bevy::prelude::*;
 use bevy::utils::HashMap;
 
 pub struct AnimationPlugin;
 
-#[derive(Resource, Default)]
-pub struct ResourceAnimationCharacterMap(HashMap<Entity, Entity>);
+impl Plugin for AnimationPlugin {
+    fn build(&self, app: &mut App) {
+        app.insert_resource(AnimationCharacterMap::default())
+            .add_event::<AnimationTransitionEvent>()
+            .add_systems(
+                Update,
+                store_animation_relationships.run_if(in_state(GameState::Gameplay)),
+            );
+    }
+}
 
-impl ResourceAnimationCharacterMap {
+#[derive(Resource, Default)]
+pub struct AnimationCharacterMap(HashMap<Entity, Entity>);
+
+impl AnimationCharacterMap {
     pub fn get(&self, key_entity: Entity) -> Option<Entity> {
         self.0.get(&key_entity).copied()
     }
@@ -39,8 +52,21 @@ pub struct AnimationTransitionEvent {
     pub parent_entity: Entity,
 }
 
-impl Plugin for AnimationPlugin {
-    fn build(&self, app: &mut App) {
-        app.add_event::<AnimationTransitionEvent>();
+pub fn store_animation_relationships(
+    mut animation_character_map: ResMut<AnimationCharacterMap>,
+    child_query: Query<(Entity, &Parent), Added<AnimationPlayer>>,
+    grandparent_query: Query<(Entity, &Children), With<Animated>>,
+) {
+    for (grandchild_entity, grandchild_parent) in &child_query {
+        grandparents += 1;
+        for (grandparent_entity, grandparent_children) in &grandparent_query {
+            if grandparent_children
+                .into_iter()
+                .any(|entity| *entity == grandchild_parent.get())
+            {
+                animation_character_map.insert(grandparent_entity, grandchild_entity);
+                counter += 1;
+            }
+        }
     }
 }

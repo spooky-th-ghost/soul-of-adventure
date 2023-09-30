@@ -14,7 +14,6 @@ impl Plugin for PhysicsPlugin {
 
 #[derive(Default, Bundle)]
 pub struct MovementBundle {
-    transform: Transform,
     rigidbody: RigidBody,
     collider: Collider,
     external_impulse: ExternalImpulse,
@@ -25,21 +24,6 @@ pub struct MovementBundle {
 }
 
 impl MovementBundle {
-    pub fn with_translation(mut self, translation: Vec3) -> Self {
-        self.transform.translation = translation;
-        self
-    }
-
-    pub fn with_rotation(mut self, rotation: Quat) -> Self {
-        self.transform.rotation = rotation;
-        self
-    }
-
-    pub fn looking_at(mut self, target: Vec3, up: Vec3) -> Self {
-        self.transform.look_at(target, up);
-        self
-    }
-
     pub fn with_rigidbody(mut self, rigidbody: RigidBody) -> Self {
         self.rigidbody = rigidbody;
         self
