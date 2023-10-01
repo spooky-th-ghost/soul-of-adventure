@@ -34,6 +34,19 @@ impl AnimationCharacterMap {
     }
 }
 
+#[derive(Default)]
+pub enum AnimationState {
+    #[default]
+    Idle,
+    Walk,
+    Run,
+    Attacking,
+    Rising,
+    Falling,
+    Hurt,
+    Knockdown,
+}
+
 pub enum AnimationTransition {
     ToIdle,
     ToRun,

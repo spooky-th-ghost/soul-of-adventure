@@ -1,4 +1,4 @@
-use crate::animation::store_animation_relationships;
+use crate::animation::AnimationState;
 use crate::input::{InputListenerBundle, PlayerAction};
 use crate::physics::MovementBundle;
 use crate::{Animated, CharacterCache, GameState};
@@ -16,13 +16,15 @@ impl Plugin for PlayerPlugin {
     }
 }
 
-#[derive(Component)]
-pub struct Player;
+#[derive(Component, Default)]
+pub struct Player {
+    pub state: AnimationState,
+}
 
 fn spawn_player(mut commands: Commands, characters: Res<CharacterCache>) {
     commands.spawn((
         Name::from("Player"),
-        Player,
+        Player::default(),
         Animated,
         MovementBundle::default(),
         InputListenerBundle::input_map(),
