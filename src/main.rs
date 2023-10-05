@@ -61,6 +61,29 @@ pub struct CharacterCache {
     player: Handle<Scene>,
 }
 
+#[derive(Default, Reflect)]
+pub struct CameraBounds {
+    pub max_x: f32,
+    pub min_x: f32,
+    pub max_z: f32,
+    pub min_z: f32,
+}
+
+#[derive(Component, Reflect, Default)]
+#[reflect(Component)]
+pub struct CameraController {
+    pub x_angle: f32,
+    pub offset: Vec3,
+    pub target_position: Vec3,
+    pub bounds: CameraBounds,
+}
+
+fn rotate_camera(mut camera_query: Query<(&mut Transform, &CameraController)>) {
+    for (mut transform, controller) in &mut camera_query {
+        transform.rotation.x = -1.0 * controller.x_angle.to_radians();
+    }
+}
+
 fn main() {
     App::new()
         .add_plugins((DefaultPlugins, WorldInspectorPlugin::default()))
@@ -71,6 +94,8 @@ fn main() {
             player::PlayerPlugin,
         ))
         .add_state::<GameState>()
+        .register_type::<CameraController>()
+        .register_type::<CameraBounds>()
         .add_loading_state(LoadingState::new(GameState::PreLoad).continue_to_state(GameState::Load))
         .add_collection_to_loading_state::<_, PlayerAnimationCache>(GameState::PreLoad)
         .add_collection_to_loading_state::<_, StructureCache>(GameState::PreLoad)
@@ -89,6 +114,7 @@ fn main() {
         )
         .add_systems(OnEnter(GameState::Load), startup)
         .add_systems(Update, move_to_gameplay.run_if(in_state(GameState::Load)))
+        .add_systems(Update, rotate_camera.run_if(in_state(GameState::Gameplay)))
         .run();
 }
 
@@ -99,7 +125,11 @@ fn move_to_gameplay(mut next_state: ResMut<NextState<GameState>>) {
 fn startup(mut commands: Commands) {
     commands.spawn((
         Camera3dBundle {
-            transform: Transform::from_xyz(5.0, 15.0, 10.0).looking_at(Vec3::ZERO, Vec3::Y),
+            transform: Transform::from_xyz(14.0, 16.5, 21.5),
+            ..default()
+        },
+        CameraController {
+            x_angle: 24.5,
             ..default()
         },
         Name::from("Camera"),

@@ -66,6 +66,7 @@ pub struct AnimationTransitionEvent {
 }
 
 pub fn store_animation_relationships(
+    mut commands: Commands,
     mut animation_character_map: ResMut<AnimationCharacterMap>,
     child_query: Query<(Entity, &Parent), Added<AnimationPlayer>>,
     grandparent_query: Query<(Entity, &Children), With<Animated>>,
@@ -77,6 +78,7 @@ pub fn store_animation_relationships(
                 .any(|entity| *entity == grandchild_parent.get())
             {
                 animation_character_map.insert(grandparent_entity, grandchild_entity);
+                commands.entity(grandparent_entity).remove::<Animated>();
             }
         }
     }

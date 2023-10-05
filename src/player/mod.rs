@@ -16,15 +16,13 @@ impl Plugin for PlayerPlugin {
     }
 }
 
-#[derive(Component, Default)]
-pub struct Player {
-    pub state: AnimationState,
-}
+#[derive(Component)]
+pub struct Player;
 
 fn spawn_player(mut commands: Commands, characters: Res<CharacterCache>) {
     commands.spawn((
         Name::from("Player"),
-        Player::default(),
+        Player,
         Animated,
         MovementBundle::default(),
         InputListenerBundle::input_map(),

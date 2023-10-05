@@ -29,7 +29,7 @@ fn build_a_room(mut commands: Commands, structures: Res<StructureCache>) {
             xxxxxxxxxxxxxxxxx
             x    x     d    x
             xxxxxxxxddxxxxdxx
-            x    xoooooox   x
+            x    x      x   x
             xxxxxxxxxxxxxxxdx
         ",
         Vec3::ZERO,
@@ -195,19 +195,45 @@ impl TileCross {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Location {
+    pub x: usize,
+    pub y: usize,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct FullTile {
+    tile: Tile,
+    location: Location,
+}
+
+#[derive(Debug, Default)]
+pub struct Chamber {
+    pub tiles: Vec<Location>,
+}
+
+impl Chamber {
+    pub fn add(&mut self, location: Location) {
+        self.tiles.push(location);
+    }
+}
+
 #[derive(Debug)]
 pub struct Room {
     pub map: Vec<Tile>,
     width: usize,
     height: usize,
     pub origin: Vec3,
+    pub empty_locations: Vec<Location>,
 }
+
 impl Room {
     fn from_str(input: &str, origin: Vec3) -> Room {
         let mut width: usize = 0;
         let mut height: usize = 0;
         let mut map: Vec<Tile>;
         let mut tile_vec: Vec<(Tile, usize, usize)> = Vec::default();
+        let mut empty_locations: Vec<Location> = Vec::new();
         input
             .trim()
             .lines()
@@ -224,11 +250,12 @@ impl Room {
                     .enumerate()
                     .for_each(|(x, character)| {
                         if character == 'x' {
-                            tile_vec.push((Some(TileType::Wall), x, y))
+                            tile_vec.push((Some(TileType::Wall), x, y));
                         } else if character == 'd' {
-                            tile_vec.push((Some(TileType::Door), x, y))
+                            tile_vec.push((Some(TileType::Door), x, y));
                         } else {
-                            tile_vec.push((Some(TileType::Empty), x, y))
+                            empty_locations.push(Location { x, y });
+                            tile_vec.push((Some(TileType::Empty), x, y));
                         }
                     });
             });
@@ -244,7 +271,55 @@ impl Room {
             width,
             height,
             origin,
+            empty_locations,
         }
+    }
+
+    pub fn total_tiles(&self) -> usize {
+        self.width * self.height
+    }
+
+    pub fn spread_from_tile(
+        &self,
+        tile: FullTile,
+        mut chambers: &mut Vec<Chamber>,
+        mut scanned_tiles: &mut Vec<Location>,
+    ) {
+        if let Some(tile_type) = self.get(tile.location.x, tile.location.y) {
+            if tile_type == TileType::Empty {
+                if !scanned_tiles.contains(&tile.location) {
+                    scanned_tiles.push(tile.location);
+
+                    for adjacent_tile in self.get_surrounding_iter(tile.location.x, tile.location.y)
+                    {
+                        self.spread_from_tile(adjacent_tile, chambers, scanned_tiles);
+                    }
+                }
+                let mut new_chamber = Chamber::default();
+                for location in &mut *scanned_tiles {
+                    new_chamber.add(*location);
+                }
+
+                chambers.push(new_chamber);
+                scanned_tiles.clear();
+            }
+        }
+    }
+
+    pub fn find_chambers(&self) {
+        let mut chambers: Vec<Chamber> = Vec::new();
+        let mut scanned_tiles: Vec<Location> = Vec::new();
+
+        for x in 0..self.width {
+            for y in 0..self.height {
+                let starting_tile = FullTile {
+                    location: Location { x, y },
+                    tile: self.get(x, y),
+                };
+                self.spread_from_tile(starting_tile, &mut chambers, &mut scanned_tiles);
+            }
+        }
+        println!("{} Chambers Found", chambers.len());
     }
 
     pub fn get_adjacent(&self, x: usize, y: usize, direction: GridDirection) -> Tile {
@@ -292,6 +367,40 @@ impl Room {
         }
     }
 
+    fn get_surrounding_iter(&self, x: usize, y: usize) -> impl Iterator<Item = FullTile> {
+        use GridDirection::*;
+        let mut tiles_vec: Vec<FullTile> = Vec::new();
+
+        if x < self.width - 1 && x > 0 {
+            tiles_vec.push(FullTile {
+                tile: self.get_adjacent(x, y, East),
+                location: Location { x: x + 1, y },
+            });
+        }
+
+        if x < self.width && x > 1 {
+            tiles_vec.push(FullTile {
+                tile: self.get_adjacent(x, y, West),
+                location: Location { x: x - 1, y },
+            });
+        }
+
+        if y < self.height && y > 1 {
+            tiles_vec.push(FullTile {
+                tile: self.get_adjacent(x, y, North),
+                location: Location { x, y: y - 1 },
+            });
+        }
+
+        if y < self.height - 1 && y > 0 {
+            tiles_vec.push(FullTile {
+                tile: self.get_adjacent(x, y, South),
+                location: Location { x, y: y + 1 },
+            });
+        }
+        tiles_vec.into_iter()
+    }
+
     pub fn get(&self, x: usize, y: usize) -> Tile {
         self.map[(self.width * y) + x]
     }
@@ -308,7 +417,7 @@ impl Room {
     }
 
     pub fn get_center(&self) -> Vec3 {
-        (self.get_physical_size() * 0.5) + self.origin
+        (self.get_physical_size() * 0.5) + self.origin - Vec3::new(2.0, 0.0, 2.0)
     }
 
     pub fn row_iter(&self, row: usize) -> impl Iterator<Item = Tile> {
@@ -329,76 +438,12 @@ impl Room {
         resulting_vec.into_iter()
     }
 
-    pub fn get_collider_data(&self) -> (Vec<ColliderProperties>, Vec<usize>) {
-        let mut walls: Vec<ColliderProperties> = Vec::new();
-        let doors: Vec<usize> = Vec::new();
-
-        for y in 0..self.height {
-            let mut start: i8 = -1;
-            let mut end: i8 = -1;
-            for x in 0..self.width {
-                if let Some(tile_type) = self.get(x, y) {
-                    if tile_type == TileType::Wall {
-                        if start != -1 {
-                            end = x as i8;
-                        } else {
-                            start = x as i8;
-                            end = x as i8 + 1;
-                        }
-                    } else {
-                        if start != -1 {
-                            let length = (end - start) as f32 * 4.0;
-                            let size = Vec3::new(length, 4.0, 1.0) * 0.5;
-                            let x_offset = if length == 4.0 {
-                                (x as f32 * 4.0) - 4.0
-                            } else {
-                                (x as f32 * 4.0) - (length * 0.5) - 4.0
-                            };
-                            let offset = Vec3::new(x_offset, 1.0, y as f32 * 4.0);
-
-                            let rotation = if length == 4.0 {
-                                Quat::from_axis_angle(Vec3::Y, 90.0_f32.to_radians())
-                            } else {
-                                Quat::default()
-                            };
-                            let transform = Transform::from_translation(offset + self.origin)
-                                .with_rotation(rotation);
-
-                            walls.push(ColliderProperties {
-                                size,
-                                transform,
-                                tile_type: TileType::Wall,
-                            });
-                        }
-                    }
-                    if x == self.width - 1 && start != -1 {
-                        let length = (end - start) as f32 * 4.0;
-                        let size = Vec3::new(length, 4.0, 1.0) * 0.5;
-                        let x_offset = if length == 4.0 {
-                            (x as f32 * 4.0) - 4.0
-                        } else {
-                            (x as f32 * 4.0) - (length * 0.5) - 4.0
-                        };
-                        let offset = Vec3::new(x_offset, 1.0, y as f32 * 4.0);
-
-                        let rotation = if length == 4.0 {
-                            Quat::from_axis_angle(Vec3::Y, 90.0_f32.to_radians())
-                        } else {
-                            Quat::default()
-                        };
-                        let transform = Transform::from_translation(offset + self.origin)
-                            .with_rotation(rotation);
-
-                        walls.push(ColliderProperties {
-                            size,
-                            transform,
-                            tile_type: TileType::Wall,
-                        });
-                    }
-                }
-            }
-        }
-        (walls, doors)
+    pub fn get_collider_size(&self) -> Vec3 {
+        Vec3::new(
+            ((self.width as f32 - 1.0) / 2.0) * 4.0,
+            0.0,
+            ((self.height as f32 - 1.0) / 2.0) * 4.0,
+        )
     }
 
     fn build(&self, mut commands: Commands, structures: &Res<StructureCache>) {
@@ -420,12 +465,18 @@ impl Room {
                         local: Transform::from_translation(self.get_center()),
                         ..default()
                     },
-                    Collider::cuboid(
-                        (self.width as f32 / 2.0) * 4.0,
-                        0.5,
-                        (self.height as f32 / 2.0) * 4.0,
-                    ),
+                    Collider::cuboid(self.get_collider_size().x, 0.5, self.get_collider_size().z),
                     RigidBody::Fixed,
+                ));
+
+                parent.spawn((
+                    TransformBundle {
+                        local: Transform::from_translation(self.get_center()),
+                        ..default()
+                    },
+                    Collider::cuboid(self.get_collider_size().x, 5.0, self.get_collider_size().z),
+                    RigidBody::Fixed,
+                    Sensor,
                 ));
 
                 for x in 0..self.width {
