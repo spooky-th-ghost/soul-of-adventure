@@ -92,6 +92,7 @@ fn main() {
             room_builder::RoomBuilderPlugin,
             physics::PhysicsPlugin,
             player::PlayerPlugin,
+            input::InputPlugin,
         ))
         .add_state::<GameState>()
         .register_type::<CameraController>()
@@ -133,5 +134,8 @@ fn startup(mut commands: Commands) {
             ..default()
         },
         Name::from("Camera"),
+        camera::MainCamera {
+            target_transform: Transform::default(),
+        },
     ));
 }

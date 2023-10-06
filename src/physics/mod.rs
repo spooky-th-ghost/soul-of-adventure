@@ -13,10 +13,7 @@ impl Plugin for PhysicsPlugin {
             RapierPhysicsPlugin::<NoUserData>::default(),
             RapierDebugRenderPlugin::default(),
         ))
-        // .add_plugins((
-        //     lateral::LateralMovementPlugin,
-        //     vertical::VerticalMovementPlugin,
-        // ))
+        .add_plugins((lateral::LateralMovementPlugin,))
         .register_type::<Speed>()
         .register_type::<Direction>()
         .register_type::<Momentum>()
