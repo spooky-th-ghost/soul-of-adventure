@@ -1,4 +1,4 @@
-use super::{Character, Direction, Grounded, Landing, Speed};
+use super::{Character, Direction, Grounded, Landing, Momentum, Speed};
 use crate::camera::MainCamera;
 use crate::input::PlayerAction;
 use crate::player::Player;
@@ -13,7 +13,8 @@ impl Plugin for LateralMovementPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
-            (rotate_to_direction).run_if(in_state(GameState::Gameplay)),
+            (rotate_to_direction, handle_speed, apply_momentum)
+                .run_if(in_state(GameState::Gameplay)),
         );
     }
 }
@@ -38,6 +39,39 @@ pub fn rotate_to_direction(
             transform.rotation = transform
                 .rotation
                 .slerp(rotation_target.rotation, time.delta_seconds() * turn_speed);
+        }
+    }
+}
+
+fn handle_speed(
+    time: Res<Time>,
+    mut character_query: Query<(&Direction, &mut Momentum, &mut Speed), With<Grounded>>,
+) {
+    for (direction, mut momentum, mut speed) in &mut character_query {
+        if direction.is_any() {
+            speed.accelerate(&time);
+            momentum.set(speed.current());
+        } else {
+            speed.reset();
+            momentum.reset();
+        }
+    }
+}
+
+fn apply_momentum(mut query: Query<(&mut Velocity, &Transform, &Momentum)>) {
+    for (mut velocity, transform, momentum) in &mut query {
+        let mut speed_to_apply = Vec3::ZERO;
+        let mut should_change_velocity: bool = false;
+
+        if momentum.is_any() {
+            should_change_velocity = true;
+            let forward = transform.forward();
+            speed_to_apply += forward * momentum.get();
+        }
+
+        if should_change_velocity {
+            velocity.linvel.x = speed_to_apply.x;
+            velocity.linvel.z = speed_to_apply.z;
         }
     }
 }

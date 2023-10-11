@@ -60,8 +60,8 @@ pub fn get_direction_in_camera_space(
         z = axis_pair.y();
     }
 
-    let right_vec: Vec3 = -x * right;
-    let forward_vec: Vec3 = -z * forward;
+    let right_vec: Vec3 = x * right;
+    let forward_vec: Vec3 = z * forward;
 
     (right_vec + forward_vec).normalize_or_zero()
 }

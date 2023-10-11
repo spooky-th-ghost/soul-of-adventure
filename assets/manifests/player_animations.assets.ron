@@ -1,11 +1,11 @@
 ({
     "idle": File (
-        path: "characters/models/Rogue_Hooded.glb#Animation36",
+        path: "characters/models/rogue-turned.glb#Animation36",
     ),
 		"interact": File (
-			path: "characters/models/Rogue_Hooded.glb#Animation37"
+			path: "characters/models/rogue-turned.glb#Animation37"
 		),
 		"run": File (
-			path: "characters/models/Rogue_Hooded.glb#Animation48"
+			path: "characters/models/rogue-turned.glb#Animation48"
 		),
 })

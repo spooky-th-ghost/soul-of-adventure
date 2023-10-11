@@ -3,6 +3,7 @@ use crate::input::{InputListenerBundle, PlayerAction};
 use crate::physics::{Grounded, MovementBundle};
 use crate::{Animated, CharacterCache, GameState};
 use bevy::prelude::*;
+use bevy_rapier3d::prelude::*;
 
 mod animation;
 mod movement;
@@ -27,7 +28,10 @@ fn spawn_player(mut commands: Commands, characters: Res<CharacterCache>) {
         Name::from("Player"),
         Player,
         Animated,
-        MovementBundle::default(),
+        MovementBundle {
+            collider: Collider::capsule(Vec3::Y * 0.5, Vec3::Y * 1.5, 0.5),
+            ..default()
+        },
         InputListenerBundle::input_map(),
         SceneBundle {
             scene: characters.player.clone_weak(),

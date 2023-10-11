@@ -34,6 +34,48 @@ pub struct Speed {
     deceleration: f32,
 }
 
+impl Speed {
+    pub fn reset(&mut self) {
+        self.current_speed = self.base_speed;
+        self.top_speed = self.base_top_speed;
+        self.accel_timer.reset();
+        self.decel_timer.reset();
+    }
+
+    pub fn accelerate(&mut self, time: &Res<Time>) {
+        self.accel_timer.tick(time.delta());
+        if self.accel_timer.finished() {
+            if self.current_speed + 0.3 <= self.top_speed {
+                self.current_speed = self.current_speed
+                    + (self.top_speed - self.current_speed)
+                        * (time.delta_seconds() * self.acceleration);
+            } else {
+                self.current_speed = self.top_speed;
+            }
+        }
+    }
+
+    pub fn decelerate(&mut self, time: &Res<Time>) {
+        self.decel_timer.tick(time.delta());
+        if self.decel_timer.finished() {
+            if self.current_speed - 0.3 >= self.base_speed {
+                self.current_speed = self.current_speed
+                    + (self.base_speed - self.current_speed)
+                        * (time.delta_seconds() * self.deceleration);
+            }
+        }
+    }
+
+    pub fn current(&self) -> f32 {
+        self.current_speed
+    }
+
+    pub fn set(&mut self, speed: f32) {
+        self.top_speed = speed;
+        self.current_speed = speed;
+    }
+}
+
 impl Default for Speed {
     fn default() -> Self {
         Speed {
@@ -95,6 +137,10 @@ impl Momentum {
     pub fn add(&mut self, value: f32) {
         self.0 += value;
     }
+
+    pub fn reset(&mut self) {
+        self.0 = 0.0;
+    }
 }
 
 #[derive(Component, Default, Reflect)]
@@ -123,18 +169,42 @@ pub struct Character {
     pub state: AnimationState,
 }
 
-#[derive(Default, Bundle)]
+#[derive(Bundle)]
 pub struct MovementBundle {
-    rigidbody: RigidBody,
-    collider: Collider,
-    external_impulse: ExternalImpulse,
-    velocity: Velocity,
-    friction: Friction,
-    damping: Damping,
-    gravity_scale: GravityScale,
-    direction: Direction,
-    speed: Speed,
-    character: Character,
+    pub rigidbody: RigidBody,
+    pub collider: Collider,
+    pub external_impulse: ExternalImpulse,
+    pub velocity: Velocity,
+    pub friction: Friction,
+    pub damping: Damping,
+    pub gravity_scale: GravityScale,
+    pub direction: Direction,
+    pub speed: Speed,
+    pub character: Character,
+    pub momentum: Momentum,
+    pub locked_axes: LockedAxes,
+}
+
+impl Default for MovementBundle {
+    fn default() -> Self {
+        MovementBundle {
+            rigidbody: RigidBody::Dynamic,
+            collider: Collider::default(),
+            external_impulse: ExternalImpulse::default(),
+            velocity: Velocity::default(),
+            friction: Friction::default(),
+            damping: Damping {
+                linear_damping: 6.0,
+                ..default()
+            },
+            gravity_scale: GravityScale::default(),
+            direction: Direction::default(),
+            speed: Speed::default(),
+            character: Character::default(),
+            momentum: Momentum::default(),
+            locked_axes: LockedAxes::ROTATION_LOCKED,
+        }
+    }
 }
 
 impl MovementBundle {
